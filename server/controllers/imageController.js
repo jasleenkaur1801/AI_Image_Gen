@@ -4,13 +4,15 @@ import userModel from "../models/userModel.js"
 
 export const generateImage = async (req,res)=>{
     try{
-        const {userId,prompt} = req.body
+        const {prompt} = req.body
+        const userId = req.userId
 
         const user = await userModel.findById(userId)
         if(!user || !prompt){
             return res.json({success: false, message: 'Missing Details'})
         }
-        if(user.creditBalance === 0 || userModel.creditBalance<0){
+        if(user.creditBalance === 0 || user.creditBalance < 0){
+
             return res.json({success: false,message: 'No Credit Balance',
                 creditBalance: user.creditBalance})
         }

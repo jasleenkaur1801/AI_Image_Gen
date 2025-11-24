@@ -3,7 +3,6 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import razorpay from 'razorpay'
 import transactionModel from "../models/transactionModel.js";
-import { SchemaTypeOptions } from "mongoose";
 
 const registerUser = async (req,res)=>{
     try{
@@ -70,11 +69,13 @@ const razorpayInstance = new razorpay({
 
 const paymentRazorpay = async(req,res)=>{
     try{
-        const {userId,planId} = req.body
-        const userData = await userModel.findById(userId)
+        const { planId } = req.body;
+        const userId = req.userId;
+
         if(!userId || !planId){
             return res.json({success: false,message: 'Missing details'})
         }
+
         
         let credits, plan, amount, date
         switch (planId) {
@@ -104,20 +105,37 @@ const paymentRazorpay = async(req,res)=>{
 
         const options= {
             amount: amount*100,
-            currency: process.env.currency,
-            reciept: newTransaction._id,
-        }
-        await razorpayInstance.orders.create(SchemaTypeOptions,(error,order)=>{
-            if(error){
-                console.log(error);
-                return res.json({success: false,message: error})
+            currency: process.env.RAZORPAY_CURRENCY || 'INR',
+            receipt: `${newTransaction._id}`,
+            notes: {
+                userId: `${userId}`,
+                plan,
             }
-            res.json({success: true,order})
-        })
+        }
+
+        const order = await razorpayInstance.orders.create(options);
+        res.json({success: true,order})
     }catch(error){
         console.log(error)
         res.json({success: false,message: error.message})
     }
 }
+
+const verifyRazorpay = async(req,res)=>{
+    try{
+        const {razorpay_order_id} = req.body;
+        const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id)
+        if(orderInfo.status === 'paid'){
+            const transactionData = await transactionModel.findById(orderInfo.receipt)
+            if(transactionData.payment){
+                return res.json({success: false,message: 'Payment Failed'})
+            }
+            const userData = await userModel.findById(transactionData.userId)
+        }
+    }catch(error){
+        console.log(error);
+        res.json({success: false,message: error.message});
+    }
+} 
 
 export {registerUser,loginUser,userCredits,paymentRazorpay}

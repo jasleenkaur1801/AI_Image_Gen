@@ -4,11 +4,22 @@ import { AppContext } from '../context/AppContext'
 import {motion} from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { toast } from 'react-toastify'
 
 const BuyCredit = () => {
   const {user,backendUrl, loadCreditsData, token, setShowLogin} = useContext(AppContext)
   const navigate = useNavigate()
   const initPay = async(order)=>{
+    if (!order?.id) {
+      toast.error('Unable to initiate payment. Please try again.');
+      return;
+    }
+
+    if (!window.Razorpay) {
+      toast.error('Payment SDK not loaded. Please refresh and try again.');
+      return;
+    }
+
     const options = {
       key: import.meta.env.VITE_RAZORPAY_KEY_ID,
       amount: order.amount,
@@ -18,10 +29,14 @@ const BuyCredit = () => {
       order_id: order.id,
       receipt: order.receipt,
       handler: async (response)=>{
+        toast.success('Payment initiated. Complete the checkout window.');
         console.log(response);
       }
     }
     const rzp = new window.Razorpay(options)
+    rzp.on('payment.failed', () => {
+      toast.error('Payment failed or cancelled.');
+    })
     rzp.open()
   }
   const paymentRazorpay = async (planId)=>{
@@ -55,7 +70,7 @@ const BuyCredit = () => {
             <p className='text-sm'>{item.desc}</p>
             <p className='mt-6'>
             <span className='text-3xl font-medium'>${item.price}</span>/{item.credits} credits</p>
-            <button onClick={()=>paymentRazorpay(item.id)} className='w-full bg-gray-800 text-white mt-8 text-sm rounded-md py-2.5 min-w-52'>{user ? 'Purchase' : 'Get Started'}</button>
+            <button onClick={()=>paymentRazorpay(item.id)} className='w-full bg-gray-800 text-white mt-8 text-sm rounded-md py-2.5 min-w-52 cursor-pointer'>{user ? 'Purchase' : 'Get Started'}</button>
           </div>
         ))}
       </div>

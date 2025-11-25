@@ -29,14 +29,19 @@ const BuyCredit = () => {
       order_id: order.id,
       receipt: order.receipt,
       handler: async (response)=>{
-        toast.success('Payment initiated. Complete the checkout window.');
-        console.log(response);
+        try{
+          const {data} = await axios.post(backendUrl+'/api/user/verify-razor',response,{headers: {token}})
+          if(data.success){
+            loadCreditsData();
+            navigate('/')
+            toast.success('Credit Added')
+          }
+        }catch(error){
+          toast.error(error.message);
+        }
       }
     }
     const rzp = new window.Razorpay(options)
-    rzp.on('payment.failed', () => {
-      toast.error('Payment failed or cancelled.');
-    })
     rzp.open()
   }
   const paymentRazorpay = async (planId)=>{
